@@ -1,0 +1,733 @@
+-- BigPaintball Classic | Xeno | Panel UI
+
+local playersService   = game:GetService("Players")
+local runService       = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local workspaceService = game:GetService("Workspace")
+local tweenService     = game:GetService("TweenService")
+
+local localPlayer   = playersService.LocalPlayer
+local currentCamera = workspaceService.CurrentCamera
+
+local CONFIG = {
+    silentAim           = false,
+    silentAimSize       = 60,
+    wallbang            = false,
+    hitbox              = false,
+    hitboxSize          = 10,
+    hitboxTransparency  = 0.5,
+    hitboxColor         = Color3.fromRGB(255, 60, 60),
+    aimbot              = false,
+    aimbotKey           = Enum.UserInputType.MouseButton2,
+    aimbotFov           = 120,
+    aimbotSmoothing     = 0.15,
+    aimbotBone          = "Head",
+    esp                 = false,
+    espBoxes            = true,
+    espNames            = true,
+    espHealth           = true,
+    espTracers          = true,
+    espDistance         = true,
+    espMaxDist          = 1000,
+    showFovCircle       = true,
+    colorEnemy          = Color3.fromRGB(255, 60, 60),
+    colorFov            = Color3.fromRGB(255, 255, 255),
+    colorTracer         = Color3.fromRGB(255, 60, 60),
+    colorText           = Color3.fromRGB(255, 255, 255),
+    colorHealthHigh     = Color3.fromRGB(0, 255, 100),
+    colorHealthLow      = Color3.fromRGB(255, 50, 50),
+}
+
+local panelOpen   = true
+local hitboxParts = {}
+
+--------------------------------------------------------------------------------
+-- GUI
+--------------------------------------------------------------------------------
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name           = "BPPanel"
+screenGui.ResetOnSpawn   = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent         = gethui()
+
+local main = Instance.new("Frame")
+main.Name             = "Main"
+main.Size             = UDim2.new(0, 280, 0, 530)
+main.Position         = UDim2.new(0, 80, 0.5, -265)
+main.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+main.BorderSizePixel  = 0
+main.Parent           = screenGui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+
+local accent = Instance.new("Frame")
+accent.Size             = UDim2.new(1, 0, 0, 3)
+accent.BackgroundColor3 = Color3.fromRGB(100, 60, 220)
+accent.BorderSizePixel  = 0
+accent.ZIndex           = 2
+accent.Parent           = main
+Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 8)
+
+local titleBar = Instance.new("Frame")
+titleBar.Size                   = UDim2.new(1, 0, 0, 36)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent                 = main
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size                   = UDim2.new(1, -50, 1, 0)
+titleLabel.Position               = UDim2.new(0, 14, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text                   = "BigPaintball"
+titleLabel.TextColor3             = Color3.fromRGB(230, 230, 230)
+titleLabel.TextSize               = 14
+titleLabel.Font                   = Enum.Font.GothamBold
+titleLabel.TextXAlignment         = Enum.TextXAlignment.Left
+titleLabel.Parent                 = titleBar
+
+local subLabel = Instance.new("TextLabel")
+subLabel.Size                   = UDim2.new(1, -50, 1, 0)
+subLabel.Position               = UDim2.new(0, 14, 0, 0)
+subLabel.BackgroundTransparency = 1
+subLabel.Text                   = "                     by pepsi"
+subLabel.TextColor3             = Color3.fromRGB(100, 60, 220)
+subLabel.TextSize               = 11
+subLabel.Font                   = Enum.Font.Gotham
+subLabel.TextXAlignment         = Enum.TextXAlignment.Left
+subLabel.Parent                 = titleBar
+
+local hideBtn = Instance.new("TextButton")
+hideBtn.Size             = UDim2.new(0, 28, 0, 28)
+hideBtn.Position         = UDim2.new(1, -36, 0, 4)
+hideBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+hideBtn.Text             = "−"
+hideBtn.TextColor3       = Color3.fromRGB(180, 180, 180)
+hideBtn.TextSize         = 16
+hideBtn.Font             = Enum.Font.GothamBold
+hideBtn.BorderSizePixel  = 0
+hideBtn.Parent           = titleBar
+Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
+
+local divider = Instance.new("Frame")
+divider.Size             = UDim2.new(1, -28, 0, 1)
+divider.Position         = UDim2.new(0, 14, 0, 36)
+divider.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+divider.BorderSizePixel  = 0
+divider.Parent           = main
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size                   = UDim2.new(1, 0, 1, -42)
+scroll.Position               = UDim2.new(0, 0, 0, 42)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel        = 0
+scroll.ScrollBarThickness     = 3
+scroll.ScrollBarImageColor3   = Color3.fromRGB(100, 60, 220)
+scroll.CanvasSize             = UDim2.new(0, 0, 0, 0)
+scroll.AutomaticCanvasSize    = Enum.AutomaticSize.Y
+scroll.Parent                 = main
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding   = UDim.new(0, 2)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent    = scroll
+
+local scrollPad = Instance.new("UIPadding")
+scrollPad.PaddingLeft   = UDim.new(0, 10)
+scrollPad.PaddingRight  = UDim.new(0, 10)
+scrollPad.PaddingTop    = UDim.new(0, 8)
+scrollPad.PaddingBottom = UDim.new(0, 8)
+scrollPad.Parent        = scroll
+
+--------------------------------------------------------------------------------
+-- Components
+--------------------------------------------------------------------------------
+
+local function makeSection(label)
+    local sec = Instance.new("Frame")
+    sec.Size                   = UDim2.new(1, 0, 0, 24)
+    sec.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size                   = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                   = label:upper()
+    lbl.TextColor3             = Color3.fromRGB(100, 60, 220)
+    lbl.TextSize               = 10
+    lbl.Font                   = Enum.Font.GothamBold
+    lbl.TextXAlignment         = Enum.TextXAlignment.Left
+    lbl.Parent                 = sec
+
+    local line = Instance.new("Frame")
+    line.Size             = UDim2.new(1, 0, 0, 1)
+    line.Position         = UDim2.new(0, 0, 1, -1)
+    line.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    line.BorderSizePixel  = 0
+    line.Parent           = sec
+
+    sec.Parent = scroll
+end
+
+local function makeToggle(label, configKey, callback)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1, 0, 0, 34)
+    row.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+    row.BorderSizePixel  = 0
+    row.Parent           = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size                   = UDim2.new(1, -54, 1, 0)
+    lbl.Position               = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                   = label
+    lbl.TextColor3             = Color3.fromRGB(200, 200, 200)
+    lbl.TextSize               = 13
+    lbl.Font                   = Enum.Font.Gotham
+    lbl.TextXAlignment         = Enum.TextXAlignment.Left
+    lbl.Parent                 = row
+
+    local track = Instance.new("Frame")
+    track.Size             = UDim2.new(0, 36, 0, 18)
+    track.Position         = UDim2.new(1, -46, 0.5, -9)
+    track.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+    track.BorderSizePixel  = 0
+    track.Parent           = row
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size             = UDim2.new(0, 14, 0, 14)
+    knob.Position         = UDim2.new(0, 2, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(160, 160, 170)
+    knob.BorderSizePixel  = 0
+    knob.Parent           = track
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local on = CONFIG[configKey]
+
+    local function refresh()
+        tweenService:Create(track, TweenInfo.new(0.15), {
+            BackgroundColor3 = on and Color3.fromRGB(100, 60, 220) or Color3.fromRGB(40, 40, 52)
+        }):Play()
+        tweenService:Create(knob, TweenInfo.new(0.15), {
+            Position         = on and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7),
+            BackgroundColor3 = on and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 170),
+        }):Play()
+    end
+
+    refresh()
+
+    row.InputBegan:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        on = not on
+        CONFIG[configKey] = on
+        refresh()
+        if callback then callback(on) end
+    end)
+end
+
+local function makeSlider(label, configKey, min, max, decimals)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1, 0, 0, 48)
+    row.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+    row.BorderSizePixel  = 0
+    row.Parent           = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size                   = UDim2.new(1, -60, 0, 20)
+    lbl.Position               = UDim2.new(0, 10, 0, 6)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                   = label
+    lbl.TextColor3             = Color3.fromRGB(200, 200, 200)
+    lbl.TextSize               = 13
+    lbl.Font                   = Enum.Font.Gotham
+    lbl.TextXAlignment         = Enum.TextXAlignment.Left
+    lbl.Parent                 = row
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Size                   = UDim2.new(0, 50, 0, 20)
+    valLbl.Position               = UDim2.new(1, -58, 0, 6)
+    valLbl.BackgroundTransparency = 1
+    valLbl.TextColor3             = Color3.fromRGB(100, 60, 220)
+    valLbl.TextSize               = 12
+    valLbl.Font                   = Enum.Font.GothamBold
+    valLbl.TextXAlignment         = Enum.TextXAlignment.Right
+    valLbl.Parent                 = row
+
+    local track = Instance.new("Frame")
+    track.Size             = UDim2.new(1, -20, 0, 4)
+    track.Position         = UDim2.new(0, 10, 1, -14)
+    track.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+    track.BorderSizePixel  = 0
+    track.Parent           = row
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame")
+    fill.Size             = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 60, 220)
+    fill.BorderSizePixel  = 0
+    fill.Parent           = track
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local function setValue(v)
+        v = math.clamp(v, min, max)
+        CONFIG[configKey] = v
+        fill.Size   = UDim2.new((v - min) / (max - min), 0, 1, 0)
+        valLbl.Text = string.format(decimals and ("%." .. decimals .. "f") or "%d", v)
+    end
+
+    setValue(CONFIG[configKey])
+
+    local dragging = false
+    track.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    userInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    userInputService.InputChanged:Connect(function(inp)
+        if not dragging or inp.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local ratio = math.clamp((inp.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        setValue(min + (max - min) * ratio)
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- Layout
+--------------------------------------------------------------------------------
+
+makeSection("Combat")
+makeToggle("Silent Aim",          "silentAim")
+makeSlider("Silent Aim Size",     "silentAimSize",      10,  200)
+makeToggle("Wallbang",            "wallbang")
+makeToggle("Hitbox Expander",     "hitbox", function(state)
+    if not state then
+        for player, part in pairs(hitboxParts) do
+            pcall(function() part:Destroy() end)
+            hitboxParts[player] = nil
+        end
+    end
+end)
+makeSlider("Hitbox Size",         "hitboxSize",         1,   30)
+makeSlider("Hitbox Transparency", "hitboxTransparency", 0,   0.99, 2)
+makeToggle("Aimbot (RMB)",        "aimbot")
+makeSlider("Aimbot FOV",          "aimbotFov",          10,  400)
+makeSlider("Aimbot Smoothing",    "aimbotSmoothing",    0.01, 1,   2)
+
+makeSection("Visuals")
+makeToggle("ESP",                 "esp")
+makeToggle("Boxes",               "espBoxes")
+makeToggle("Names",               "espNames")
+makeToggle("Health Bars",         "espHealth")
+makeToggle("Tracers",             "espTracers")
+makeToggle("Distance",            "espDistance")
+makeToggle("FOV Circle",          "showFovCircle")
+makeSlider("Max ESP Dist",        "espMaxDist",         100, 2000)
+
+--------------------------------------------------------------------------------
+-- Draggable
+--------------------------------------------------------------------------------
+
+do
+    local dragging, dragStart, startPos
+    titleBar.InputBegan:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        dragging  = true
+        dragStart = inp.Position
+        startPos  = main.Position
+    end)
+    userInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    userInputService.InputChanged:Connect(function(inp)
+        if not dragging or inp.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local delta = inp.Position - dragStart
+        main.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end)
+end
+
+hideBtn.MouseButton1Click:Connect(function()
+    panelOpen       = not panelOpen
+    scroll.Visible  = panelOpen
+    divider.Visible = panelOpen
+    main.Size       = panelOpen and UDim2.new(0, 280, 0, 530) or UDim2.new(0, 280, 0, 36)
+    hideBtn.Text    = panelOpen and "−" or "+"
+end)
+
+userInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.Insert then
+        panelOpen    = not panelOpen
+        main.Visible = panelOpen
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+local function isAlive(player)
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0
+end
+
+local function getHRP(player)
+    local char = player.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getBone(player, bone)
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChild(bone) or char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getClosestPlayer(fovRadius)
+    local closest, closestDist = nil, math.huge
+    local mousePos = userInputService:GetMouseLocation()
+    for _, player in ipairs(playersService:GetPlayers()) do
+        if player == localPlayer or not isAlive(player) then continue end
+        local hrp = getHRP(player)
+        if not hrp then continue end
+        local sp, onScreen = currentCamera:WorldToViewportPoint(hrp.Position)
+        if not onScreen then continue end
+        local dist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+        if dist < fovRadius and dist < closestDist then
+            closest, closestDist = player, dist
+        end
+    end
+    return closest
+end
+
+local function isCharacterPart(part)
+    for _, player in ipairs(playersService:GetPlayers()) do
+        if player.Character and part:IsDescendantOf(player.Character) then
+            return true
+        end
+    end
+    return false
+end
+
+--------------------------------------------------------------------------------
+-- Hitbox expander
+-- Silent aim shares the same pool but overrides size + transparency
+--------------------------------------------------------------------------------
+
+local function getOrCreateHitbox(player)
+    if hitboxParts[player] then return hitboxParts[player] end
+    local hrp = getHRP(player)
+    if not hrp then return nil end
+
+    local part = Instance.new("Part")
+    part.Name         = "HitboxExpander"
+    part.Anchored     = false
+    part.CanCollide   = false
+    part.Massless     = true
+    part.CastShadow   = false
+    part.Color        = CONFIG.hitboxColor
+    part.Material     = Enum.Material.ForceField
+    part.Size         = Vector3.new(1, 1, 1)
+    part.Transparency = 0.5
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0  = part
+    weld.Part1  = hrp
+    weld.Parent = part
+
+    part.CFrame = hrp.CFrame
+    part.Parent = hrp.Parent
+
+    hitboxParts[player] = part
+    return part
+end
+
+local function removeHitbox(player)
+    local part = hitboxParts[player]
+    if not part then return end
+    pcall(function() part:Destroy() end)
+    hitboxParts[player] = nil
+end
+
+playersService.PlayerRemoving:Connect(removeHitbox)
+playersService.PlayerAdded:Connect(function(player)
+    player.CharacterRemoving:Connect(function() removeHitbox(player) end)
+end)
+for _, player in ipairs(playersService:GetPlayers()) do
+    if player ~= localPlayer then
+        player.CharacterRemoving:Connect(function() removeHitbox(player) end)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- ESP pool
+--------------------------------------------------------------------------------
+
+local espObjects = {}
+
+local function makeEspObj(player)
+    local obj = {
+        box      = Drawing.new("Square"),
+        name     = Drawing.new("Text"),
+        healthBg = Drawing.new("Square"),
+        health   = Drawing.new("Square"),
+        tracer   = Drawing.new("Line"),
+        distance = Drawing.new("Text"),
+    }
+    obj.box.Visible       = false; obj.box.Thickness  = 1; obj.box.Filled = false
+    obj.box.Color         = CONFIG.colorEnemy
+    obj.name.Visible      = false; obj.name.Size      = 13
+    obj.name.Font         = Drawing.Fonts.UI; obj.name.Center  = true
+    obj.name.Outline      = true;  obj.name.Color     = CONFIG.colorText
+    obj.healthBg.Visible  = false; obj.healthBg.Filled = true
+    obj.healthBg.Color    = Color3.fromRGB(0, 0, 0)
+    obj.health.Visible    = false; obj.health.Filled  = true
+    obj.tracer.Visible    = false; obj.tracer.Thickness = 1
+    obj.tracer.Color      = CONFIG.colorTracer
+    obj.distance.Visible  = false; obj.distance.Size  = 11
+    obj.distance.Font     = Drawing.Fonts.UI
+    obj.distance.Center   = true;  obj.distance.Outline = true
+    obj.distance.Color    = CONFIG.colorText
+    espObjects[player]    = obj
+end
+
+local function removeEspObj(player)
+    local obj = espObjects[player]
+    if not obj then return end
+    for _, d in pairs(obj) do pcall(function() d:Remove() end) end
+    espObjects[player] = nil
+end
+
+local function hideEspObj(obj)
+    for _, d in pairs(obj) do d.Visible = false end
+end
+
+for _, p in ipairs(playersService:GetPlayers()) do
+    if p ~= localPlayer then makeEspObj(p) end
+end
+playersService.PlayerAdded:Connect(function(p) makeEspObj(p) end)
+playersService.PlayerRemoving:Connect(function(p)
+    removeEspObj(p)
+    removeHitbox(p)
+end)
+
+--------------------------------------------------------------------------------
+-- FOV circle
+--------------------------------------------------------------------------------
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible   = CONFIG.showFovCircle
+fovCircle.Radius    = 150
+fovCircle.Color     = CONFIG.colorFov
+fovCircle.Thickness = 1
+fovCircle.Filled    = false
+fovCircle.NumSides  = 64
+
+--------------------------------------------------------------------------------
+-- Render loop
+--------------------------------------------------------------------------------
+
+runService.RenderStepped:Connect(function()
+    fovCircle.Visible  = CONFIG.showFovCircle
+    fovCircle.Position = userInputService:GetMouseLocation()
+    fovCircle.Radius   = CONFIG.aimbotFov
+
+    for _, player in ipairs(playersService:GetPlayers()) do
+        if player == localPlayer then continue end
+
+        -- Hitbox/silent aim share the same part pool
+        -- Silent aim: huge invisible part; hitbox expander: visible sized part
+        local needPart = CONFIG.hitbox or CONFIG.silentAim
+        if needPart and isAlive(player) then
+            local part = getOrCreateHitbox(player)
+            if part then
+                if CONFIG.silentAim then
+                    -- Silent aim takes priority — massive nearly-invisible bubble
+                    local s = CONFIG.silentAimSize
+                    part.Size         = Vector3.new(s, s, s)
+                    part.Transparency = 0.98
+                    part.Color        = CONFIG.hitboxColor
+                elseif CONFIG.hitbox then
+                    local s = CONFIG.hitboxSize
+                    part.Size         = Vector3.new(s, s, s)
+                    part.Transparency = CONFIG.hitboxTransparency
+                    part.Color        = CONFIG.hitboxColor
+                end
+            end
+        else
+            removeHitbox(player)
+        end
+
+        -- ESP
+        local obj = espObjects[player]
+        if not obj then continue end
+
+        if not CONFIG.esp or not isAlive(player) then
+            hideEspObj(obj); continue
+        end
+
+        local char = player.Character
+        local hrp  = getHRP(player)
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not (hrp and hum) then hideEspObj(obj); continue end
+
+        local worldDist = (hrp.Position - currentCamera.CFrame.Position).Magnitude
+        if worldDist > CONFIG.espMaxDist then hideEspObj(obj); continue end
+
+        local rootSp, onScreen = currentCamera:WorldToViewportPoint(hrp.Position)
+        if not onScreen then hideEspObj(obj); continue end
+
+        local head   = char:FindFirstChild("Head")
+        local headSp = head and currentCamera:WorldToViewportPoint(head.Position) or rootSp
+
+        local sRoot = Vector2.new(rootSp.X, rootSp.Y)
+        local sHead = Vector2.new(headSp.X, headSp.Y)
+        local boxH  = math.abs(sRoot.Y - sHead.Y) * 2.2
+        local boxW  = boxH * 0.55
+        local boxX  = sRoot.X - boxW / 2
+        local boxY  = sHead.Y - boxH * 0.08
+
+        if CONFIG.espBoxes then
+            obj.box.Visible  = true
+            obj.box.Size     = Vector2.new(boxW, boxH)
+            obj.box.Position = Vector2.new(boxX, boxY)
+        else obj.box.Visible = false end
+
+        if CONFIG.espNames then
+            obj.name.Visible  = true
+            obj.name.Text     = player.Name
+            obj.name.Position = Vector2.new(sRoot.X, boxY - 15)
+        else obj.name.Visible = false end
+
+        if CONFIG.espHealth then
+            local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+            local bw, bx = 4, boxX - 6
+            obj.healthBg.Visible  = true
+            obj.healthBg.Size     = Vector2.new(bw, boxH)
+            obj.healthBg.Position = Vector2.new(bx, boxY)
+            obj.health.Visible    = true
+            obj.health.Size       = Vector2.new(bw, boxH * ratio)
+            obj.health.Position   = Vector2.new(bx, boxY + boxH * (1 - ratio))
+            obj.health.Color      = CONFIG.colorHealthLow:Lerp(CONFIG.colorHealthHigh, ratio)
+        else
+            obj.health.Visible   = false
+            obj.healthBg.Visible = false
+        end
+
+        if CONFIG.espTracers then
+            local vp = currentCamera.ViewportSize
+            obj.tracer.Visible = true
+            obj.tracer.From    = Vector2.new(vp.X / 2, vp.Y)
+            obj.tracer.To      = sRoot
+        else obj.tracer.Visible = false end
+
+        if CONFIG.espDistance then
+            obj.distance.Visible  = true
+            obj.distance.Text     = math.floor(worldDist / 3) .. "m"
+            obj.distance.Position = Vector2.new(sRoot.X, boxY + boxH + 2)
+        else obj.distance.Visible = false end
+    end
+
+    if CONFIG.aimbot and userInputService:IsMouseButtonPressed(CONFIG.aimbotKey) then
+        local target = getClosestPlayer(CONFIG.aimbotFov)
+        if target then
+            local bone = getBone(target, CONFIG.aimbotBone)
+            if bone then
+                local _, onScreen = currentCamera:WorldToViewportPoint(bone.Position)
+                if onScreen then
+                    currentCamera.CFrame = currentCamera.CFrame:Lerp(
+                        CFrame.new(currentCamera.CFrame.Position, bone.Position),
+                        CONFIG.aimbotSmoothing
+                    )
+                end
+            end
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- Hooks — wallbang via __namecall (legacy ray APIs)
+-- Wallbang works by stripping the RaycastParams filter so the ray hits
+-- everything, then skipping non-character hits and re-casting past them
+--------------------------------------------------------------------------------
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+
+    if CONFIG.wallbang then
+        if method == "FindPartOnRayWithWhitelist" or
+           method == "FindPartOnRayWithIgnoreList" or
+           method == "FindPartOnRay" then
+            local args   = {...}
+            local ray    = args[1]
+            if typeof(ray) == "Ray" then
+                local origin    = ray.Origin
+                local direction = ray.Direction
+                local ignore    = (method == "FindPartOnRayWithIgnoreList" and type(args[2]) == "table" and args[2]) or {}
+                for _ = 1, 20 do
+                    args[1] = Ray.new(origin, direction)
+                    if method == "FindPartOnRayWithIgnoreList" then
+                        args[2] = ignore
+                    end
+                    local hit, pos, normal, mat = oldNamecall(self, unpack(args))
+                    if not hit then return hit, pos, normal, mat end
+                    if isCharacterPart(hit) then return hit, pos, normal, mat end
+                    table.insert(ignore, hit)
+                    local traveled = (pos - ray.Origin).Magnitude
+                    local remaining = direction.Magnitude - traveled
+                    if remaining < 0.1 then return hit, pos, normal, mat end
+                    origin    = pos + direction.Unit * 0.05
+                    direction = direction.Unit * remaining
+                end
+            end
+        end
+    end
+
+    return oldNamecall(self, ...)
+end))
+
+--------------------------------------------------------------------------------
+-- Hooks — wallbang via __index (new workspace:Raycast API)
+-- Also strips FilterDescendantsInstances so walls are included in the cast
+--------------------------------------------------------------------------------
+
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+    local val = oldIndex(self, key)
+
+    if CONFIG.wallbang and key == "Raycast" and (self == workspaceService or self == workspace) then
+        return newcclosure(function(ws, origin, direction, params)
+            local ignore = {}
+            local totalLength = direction.Magnitude
+
+            for _ = 1, 20 do
+                -- Build fresh params that exclude already-hit walls
+                -- Force include mode so whitelist filters don't block walls
+                local p = RaycastParams.new()
+                p.FilterType                 = Enum.RaycastFilterType.Exclude
+                p.FilterDescendantsInstances = ignore
+
+                local result = val(ws, origin, direction, p)
+                if not result then return nil end
+                if isCharacterPart(result.Instance) then return result end
+
+                table.insert(ignore, result.Instance)
+                local traveled = (result.Position - origin).Magnitude
+                local remaining = totalLength - traveled
+                if remaining < 0.1 then return nil end
+                origin    = result.Position + direction.Unit * 0.05
+                direction = direction.Unit * remaining
+            end
+
+            return nil
+        end)
+    end
+
+    return val
+end))
+
+print("BigPaintball loaded | Insert = hide/show panel")
